@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OpenWrt <openwrt@openwrt.org>
+Subject: [PATCH] arm64: dts: rockchip: add LubanCat 2 V3 external RTC
+
+Board revision V3 (EBF410044V3, 2024-03-23) adds a BM8563MA (HYM8563
+compatible) RTC on i2c0, using the pin freed by relocating the user LED
+as its interrupt. The vendor tree also disables the RK809 internal RTC
+on V3, which indicates the coin cell backs the external chip only.
+
+The RK809 RTC has no device tree node of its own upstream - it is an MFD
+cell - so it cannot be disabled the same way. Pin the RTC numbering with
+aliases instead, so the battery backed HYM8563 always becomes rtc0 and
+userspace tools that default to /dev/rtc0 keep time across power loss.
+
+Drop this patch if the target board is an earlier revision.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
+@@ -26,6 +26,9 @@
+ 		led-failsafe = &user_led;
+ 		led-running = &user_led;
+ 		led-upgrade = &user_led;
++
++		rtc0 = &hym8563;
++		rtc1 = &rk809;
+ 	};
+ 
+ 	chosen: chosen {
+@@ -438,6 +441,18 @@
+ 			};
+ 		};
+ 	};
++
++	hym8563: rtc@51 {
++		compatible = "haoyu,hym8563";
++		reg = <0x51>;
++		#clock-cells = <0>;
++		clock-output-names = "hym8563";
++		interrupt-parent = <&gpio0>;
++		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_LOW>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&hym8563_int>;
++		wakeup-source;
++	};
+ };
+ 
+ &i2s1_8ch {
+@@ -724,6 +739,12 @@
+ 		};
+ 	};
+ 
++	rtc {
++		hym8563_int: hym8563-int {
++			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
++		};
++	};
++
+ 	pmic {
+ 		pmic_int: pmic-int {
+ 			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
