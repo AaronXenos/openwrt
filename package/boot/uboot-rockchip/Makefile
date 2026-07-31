@@ -265,6 +265,13 @@ define U-Boot/fastrhino-r66s-rk3568
     lunzn_fastrhino-r66s
 endef
 
+define U-Boot/lubancat-2-rk3568
+  $(U-Boot/rk3568/Default)
+  NAME:=LubanCat 2
+  BUILD_DEVICES:= \
+    embedfire_lubancat-2
+endef
+
 define U-Boot/nanopi-r5c-rk3568
   $(U-Boot/rk3568/Default)
   NAME:=NanoPi R5C
@@ -437,6 +444,7 @@ UBOOT_TARGETS := \
   bpi-r2-pro-rk3568 \
   easepi-r1-rk3568 \
   fastrhino-r66s-rk3568 \
+  lubancat-2-rk3568 \
   nanopi-r5c-rk3568 \
   nanopi-r5s-rk3568 \
   radxa-e25-rk3568 \

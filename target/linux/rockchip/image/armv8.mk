@@ -63,6 +63,14 @@ define Device/armsom_sige7
 endef
 TARGET_DEVICES += armsom_sige7
 
+define Device/embedfire_lubancat-2
+  $(Device/rk3568)
+  DEVICE_VENDOR := EmbedFire
+  DEVICE_MODEL := LubanCat 2
+  DEVICE_PACKAGES := acpid block-mount kmod-ata-ahci-dwc kmod-fs-ext4 kmod-nvme
+endef
+TARGET_DEVICES += embedfire_lubancat-2
+
 define Device/firefly_roc-rk3328-cc
   $(Device/rk3328)
   DEVICE_VENDOR := Firefly

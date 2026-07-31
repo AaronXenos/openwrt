@@ -2,12 +2,40 @@
 . /lib/functions/uci-defaults.sh
 . /lib/functions/system.sh
 
+# Derive a MAC from the SoC's 128 bit OTP chip ID, exposed as an nvmem cell.
+# Unlike an MMC CID this is tied to the SoC itself, so it survives swapping any
+# storage device. Prints nothing if the OTP controller is unavailable.
+macaddr_generate_from_otp_id()
+{
+	local cell
+
+	cell="$(ls /sys/bus/nvmem/devices/*/cells/id@a,0 2>/dev/null | head -n1)"
+	[ -n "$cell" ] || return 1
+
+	macaddr_unsetbit_mc "$(macaddr_setbit_la "$(macaddr_canonicalize \
+		"$(sha256sum "$cell" | dd bs=1 count=12 2>/dev/null)")")"
+}
+
+# mmcblk numbering follows card probe order, not the DT "mmc" aliases, so on
+# boards carrying both eMMC and a removable card it is not stable. Resolve the
+# block device of a given MMC controller instead, and fall back to the first
+# card that shows up if that controller has no card.
+mmc_blkdev_of_controller()
+{
+	local blkdev
+
+	blkdev="$(ls -d /sys/bus/platform/devices/$1/mmc_host/mmc*/mmc*:*/block/mmcblk[0-9] 2>/dev/null | head -n1)"
+	blkdev="${blkdev##*/}"
+	echo "${blkdev:-mmcblk*}"
+}
+
 rockchip_setup_interfaces()
 {
 	local board="$1"
 
 	case "$board" in
 	armsom,sige7|\
+	embedfire,lubancat-2|\
 	friendlyarm,nanopi-r2c|\
 	friendlyarm,nanopi-r2c-plus|\
 	friendlyarm,nanopi-r2s|\
@@ -96,6 +124,14 @@ rockchip_setup_macs()
 	friendlyarm,nanopi-r6c|\
 	friendlyarm,nanopi-r6s)
 		wan_mac=$(macaddr_generate_from_mmc_cid mmcblk*)
+		lan_mac=$(macaddr_add "$wan_mac" 1)
+		;;
+	embedfire,lubancat-2)
+		# This board has both eMMC and a TF slot, so an MMC CID is not a
+		# stable identity. Prefer the SoC OTP chip ID and only fall back
+		# to the soldered eMMC (fe310000.mmc) if the OTP is unreadable.
+		wan_mac=$(macaddr_generate_from_otp_id) || \
+			wan_mac=$(macaddr_generate_from_mmc_cid "$(mmc_blkdev_of_controller fe310000.mmc)")
 		lan_mac=$(macaddr_add "$wan_mac" 1)
 		;;
 	friendlyarm,nanopi-r4s-enterprise)
