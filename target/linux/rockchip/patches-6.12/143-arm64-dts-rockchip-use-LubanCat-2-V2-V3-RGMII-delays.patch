@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OpenWrt <openwrt@openwrt.org>
+Subject: [PATCH] arm64: dts: rockchip: use LubanCat 2 V2/V3 RGMII delays
+
+The upstream device tree carries the RGMII delays of the original board
+(tx 0x22 / rx 0x0e and tx 0x21 / rx 0x0e). The vendor tree revised the
+trace compensation starting with revision V2 and uses tx 0x25 / rx 0x01
+on both MACs for V2 and V3, so apply those here.
+
+Drop this patch if the target board is a V1.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
+@@ -479,8 +479,8 @@
+ 		     &gmac0_rgmii_clk
+ 		     &gmac0_rgmii_bus>;
+ 
+-	tx_delay = <0x22>;
+-	rx_delay = <0x0e>;
++	tx_delay = <0x25>;
++	rx_delay = <0x01>;
+ 
+ 	phy-handle = <&rgmii_phy0>;
+ 	status = "okay";
+@@ -512,8 +512,8 @@
+ 		     &gmac1m1_rgmii_clk
+ 		     &gmac1m1_rgmii_bus>;
+ 
+-	tx_delay = <0x21>;
+-	rx_delay = <0x0e>;
++	tx_delay = <0x25>;
++	rx_delay = <0x01>;
+ 
+ 	phy-handle = <&rgmii_phy1>;
+ 	status = "okay";
