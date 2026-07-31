@@ -60,6 +60,22 @@ define Package/mt7921bt-firmware/install
 endef
 $(eval $(call BuildPackage,mt7921bt-firmware))
 
+#
+# MT7961 is the WiFi side of the MT7921/MT7922 family (mt7921e/u/s, including
+# the MT7921AU USB parts). The mt76 package carries its own copy of these two
+# blobs, but they are much older than what linux-firmware ships, so let this
+# package override them - see kmod-mt7921-firmware in package/kernel/mt76.
+#
+Package/mt7961-firmware = $(call Package/firmware-default,MT7961/MT7921 WiFi firmware,,LICENCE.mediatek)
+define Package/mt7961-firmware/install
+	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
+	$(INSTALL_DATA) \
+		$(PKG_BUILD_DIR)/mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin \
+		$(PKG_BUILD_DIR)/mediatek/WIFI_RAM_CODE_MT7961_1.bin \
+		$(1)/lib/firmware/mediatek
+endef
+$(eval $(call BuildPackage,mt7961-firmware))
+
 Package/mt7922bt-firmware = $(call Package/firmware-default,mt7922bt firmware,,LICENCE.mediatek)
 define Package/mt7922bt-firmware/install
 	$(INSTALL_DIR) $(1)/lib/firmware/mediatek

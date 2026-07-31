@@ -261,6 +261,9 @@ endef
 define KernelPackage/mt7921-firmware
   $(KernelPackage/mt76-default)
   TITLE:=MediaTek MT7921 firmware
+  # The blobs bundled with mt76 are from 2023-11-09, linux-firmware carries a
+  # much newer build. Pull them from there instead of installing our own.
+  DEPENDS+=+mt7961-firmware
 endef
 
 define KernelPackage/mt7922-firmware
@@ -645,11 +648,8 @@ define KernelPackage/mt7986-firmware/install
 endef
 
 define KernelPackage/mt7921-firmware/install
-	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
-	cp \
-		$(PKG_BUILD_DIR)/firmware/WIFI_MT7961_patch_mcu_1_2_hdr.bin \
-		$(PKG_BUILD_DIR)/firmware/WIFI_RAM_CODE_MT7961_1.bin \
-		$(1)/lib/firmware/mediatek
+	# WIFI_MT7961_patch_mcu_1_2_hdr.bin and WIFI_RAM_CODE_MT7961_1.bin come
+	# from the mt7961-firmware package, which tracks linux-firmware.
 endef
 
 define KernelPackage/mt7922-firmware/install
