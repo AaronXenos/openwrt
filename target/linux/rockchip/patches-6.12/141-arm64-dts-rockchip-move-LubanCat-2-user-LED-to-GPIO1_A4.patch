@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OpenWrt <openwrt@openwrt.org>
+Subject: [PATCH] arm64: dts: rockchip: move LubanCat 2 user LED to GPIO1_A4
+
+The upstream device tree describes the pre-V3 board (EBF410044, 2022),
+which wires the green USR LED to GPIO0_C7. Board revision V3
+(EBF410044V3, 2024-03-23) moved it to GPIO1_A4, so the LED never lights
+up there.
+
+Drop this patch if the target board is an earlier revision.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
+@@ -38,7 +38,7 @@
+ 		user_led: user-led {
+ 			label = "user_led";
+ 			default-state = "on";
+-			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
++			gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+ 			pinctrl-names = "default";
+ 			pinctrl-0 = <&user_led_pin>;
+ 		};
+@@ -696,7 +696,7 @@
+ &pinctrl {
+ 	leds {
+ 		user_led_pin: user-status-led-pin {
+-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
++			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+ 		};
+ 	};
