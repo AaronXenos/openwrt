@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: OpenWrt <openwrt@openwrt.org>
+Subject: [PATCH] arm64: dts: rockchip: Update LED properties for EmbedFire
+ LubanCat 2
+
+Add OpenWrt's LED aliases for showing system status.
+
+--- a/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3568-lubancat-2.dts
+@@ -21,6 +21,11 @@
+ 		ethernet1 = &gmac1;
+ 		mmc0 = &sdmmc0;
+ 		mmc1 = &sdhci;
++
++		led-boot = &user_led;
++		led-failsafe = &user_led;
++		led-running = &user_led;
++		led-upgrade = &user_led;
+ 	};
+
+ 	chosen: chosen {
+@@ -32,7 +37,6 @@
+
+ 		user_led: user-led {
+ 			label = "user_led";
+-			linux,default-trigger = "heartbeat";
+ 			default-state = "on";
+ 			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
+ 			pinctrl-names = "default";
