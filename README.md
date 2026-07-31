@@ -1,108 +1,94 @@
 ![OpenWrt logo](include/logo.png)
 
-OpenWrt Project is a Linux operating system targeting embedded devices. Instead
-of trying to create a single, static firmware, OpenWrt provides a fully
-writable filesystem with package management. This frees you from the
-application selection and configuration provided by the vendor and allows you
-to customize the device through the use of packages to suit any application.
-For developers, OpenWrt is the framework to build an application without having
-to build a complete firmware around it; for users this means the ability for
-full customization, to use the device in ways never envisioned.
+# OpenWrt 25.12.5 with EmbedFire LubanCat 2 support
 
-Sunshine!
+This tree is OpenWrt v25.12.5 (`openwrt-25.12` branch, kernel 6.12, U-Boot
+2025.10) plus support for the **EmbedFire LubanCat 2**, a Rockchip RK3568
+single board computer, used here as a router.
 
-## Download
+For the upstream OpenWrt README — what OpenWrt is, how to build it, where to
+get help — see [README_openwrt.md](README_openwrt.md).
 
-Built firmware images are available for many architectures and come with a
-package selection to be used as WiFi home router. To quickly find a factory
-image usable to migrate from a vendor stock firmware to OpenWrt, try the
-*Firmware Selector*.
+## Target hardware
 
-* [OpenWrt Firmware Selector](https://firmware-selector.openwrt.org/)
+Everything here was developed and tested on a **LubanCat 2 revision V3**
+(board number EBF410044V3, 2024-03-23), 4 GB RAM.
 
-If your device is supported, please follow the **Info** link to see install
-instructions or consult the support resources listed below.
+* SoC: Rockchip RK3568, quad-core Cortex-A55
+* Ethernet: 2x 1000M, both RGMII, both driven by a **RTL8211F** PHY
+* Storage: onboard eMMC, TF card slot, M.2 M-key slot (PCIe 3.0 x2, NVMe)
+* LED: one green user LED (silkscreen `USR`); the red `PWR` LED is wired to the
+  power rail and cannot be controlled from software
+* Buttons: `ON/OFF` (RK809 power key), `MASKROM`, `REC`
 
-## 
+**PHY variant warning.** The hardware datasheet lists the Ethernet PHY as
+**JL2101-N040C**, but this board reports `RTL8211F Gigabit Ethernet` for both
+ports — different production batches carry different PHYs. No JLSemi driver
+support was added, and the RGMII delays were chosen for the RTL8211F. Check
+`dmesg | grep PHY` before flashing a board from another batch; see the port
+document, section 4.3, for the JL2101 delay values.
 
-An advanced user may require additional or specific package. (Toolchain, SDK, ...) For everything else than simple firmware download, try the wiki download page:
+Because the mainline device tree describes the pre-V3 board, three patches
+(`141`, `142`, `143`) carry V3/V2-specific fixes. Each one says in its header
+when to drop it. Patches `141` and `142` must be applied together — V3 moved
+the user LED because its old pin became the RTC interrupt.
 
-* [OpenWrt Wiki Download](https://openwrt.org/downloads)
+## What is supported
 
-## Development
+* **Both Ethernet ports**, split into `wan` (eth0) and `lan` (eth1), with the
+  RGMII delays of the V2/V3 board revision and per-port SMP IRQ affinity.
+  Do not install `luci-app-irqbalance`; it undoes the manual affinity.
+* **ON/OFF button** through `acpid`, which is part of the default package
+  selection for this device. The RK809 power key is a standard input device,
+  not a `gpio-keys` node, so OpenWrt's `gpio-button-hotplug` cannot see it and
+  `/etc/rc.button/` does not apply. The stock `/etc/acpi/events/default` rule
+  runs `/sbin/poweroff` — if you would rather have a reboot, change that rule.
+* **Green user LED** bound to the standard OpenWrt states (`led-boot`,
+  `led-failsafe`, `led-running`, `led-upgrade`).
+* **Persistent MAC addresses**, derived from the SoC's 128-bit OTP chip ID.
+  The usual MMC CID approach is not stable on this board, which has both eMMC
+  and a removable TF card; the OTP ID belongs to the SoC and survives swapping
+  any storage device. If the OTP is unreadable, generation falls back to the
+  soldered eMMC (`fe310000.mmc`). This needs a backported upstream patch
+  enabling the RK356x OTP controller.
+* **M.2 NVMe** (`kmod-nvme`) and the onboard SATA port (`kmod-ata-ahci-dwc`).
+* **MT7921AU USB Wi-Fi** with current firmware. The blobs bundled with the mt76
+  package date from 2023-11-09; a new `mt7961-firmware` package installs them
+  from linux-firmware instead, and `kmod-mt7921-firmware` now depends on it.
 
-To build your own firmware you need a GNU/Linux, BSD or macOS system (case
-sensitive filesystem required). Cygwin is unsupported because of the lack of a
-case sensitive file system.
+Not ported: camera, MIPI-DSI panel and touch, IR receiver, RK809 audio codec,
+PWM backlight and PWM fan, and the `REC` button. The `MASKROM` button is a
+BootROM-level signal and cannot be exposed to Linux at all.
 
-### Requirements
+## Test results
 
-You need the following tools to compile OpenWrt, the package names vary between
-distributions. A complete list with distribution specific packages is found in
-the [Build System Setup](https://openwrt.org/docs/guide-developer/build-system/install-buildsystem)
-documentation.
+Verified on the board:
 
+| Item | Result |
+|---|---|
+| Ethernet throughput | 930+ Mbps, iperf3 TCP, no errors (RTL8211F, gigabit line rate) |
+| MT7921AU | Driver and updated firmware load and work correctly |
+| M.2 NVMe | Reading a file larger than 10 GB completes without errors |
+
+Not verified:
+
+| Item | Why |
+|---|---|
+| NVMe large-file **write** | Only reads were tested. If write errors or link drops ever show up, the vendor PCIe3 PHY firmware patch can be added back — see the port document, section 9.2 |
+| External RTC | The battery holder is empty, so power-loss timekeeping could not be tested. The chip itself is detected and `rtc0` is pinned to it; fitting a battery is expected to be enough, with no software change |
+
+## Building
+
+```bash
+./scripts/feeds update -a && ./scripts/feeds install -a
+make menuconfig      # Target: Rockchip -> RK33xx/RK35xx -> EmbedFire LubanCat 2
+make -j$(nproc)
 ```
-binutils bzip2 diff find flex gawk gcc-6+ getopt grep install libc-dev libz-dev
-make4.1+ perl python3.7+ rsync subversion unzip which
-```
 
-### Quickstart
+Images land in `bin/targets/rockchip/armv8/`; the one to flash is
+`openwrt-*-embedfire_lubancat-2-squashfs-sysupgrade.img.gz`. Write it to a TF
+card, or to the eMMC with `rkdeveloptool` / `upgrade_tool`. The matching
+bootloader is built as `lubancat-2-rk3568-u-boot-rockchip.bin`.
 
-1. Run `./scripts/feeds update -a` to obtain all the latest package definitions
-   defined in feeds.conf / feeds.conf.default
-
-2. Run `./scripts/feeds install -a` to install symlinks for all obtained
-   packages into package/feeds/
-
-3. Run `make menuconfig` to select your preferred configuration for the
-   toolchain, target system & firmware packages.
-
-4. Run `make` to build your firmware. This will download all sources, build the
-   cross-compile toolchain and then cross-compile the GNU/Linux kernel & all chosen
-   applications for your target system.
-
-### Related Repositories
-
-The main repository uses multiple sub-repositories to manage packages of
-different categories. All packages are installed via the OpenWrt package
-manager called `opkg`. If you're looking to develop the web interface or port
-packages to OpenWrt, please find the fitting repository below.
-
-* [LuCI Web Interface](https://github.com/openwrt/luci): Modern and modular
-  interface to control the device via a web browser.
-
-* [OpenWrt Packages](https://github.com/openwrt/packages): Community repository
-  of ported packages.
-
-* [OpenWrt Routing](https://github.com/openwrt/routing): Packages specifically
-  focused on (mesh) routing.
-
-* [OpenWrt Video](https://github.com/openwrt/video): Packages specifically
-  focused on display servers and clients (Xorg and Wayland).
-
-## Support Information
-
-For a list of supported devices see the [OpenWrt Hardware Database](https://openwrt.org/supported_devices)
-
-### Documentation
-
-* [Quick Start Guide](https://openwrt.org/docs/guide-quick-start/start)
-* [User Guide](https://openwrt.org/docs/guide-user/start)
-* [Developer Documentation](https://openwrt.org/docs/guide-developer/start)
-* [Technical Reference](https://openwrt.org/docs/techref/start)
-
-### Support Community
-
-* [Forum](https://forum.openwrt.org): For usage, projects, discussions and hardware advise.
-* [Support Chat](https://webchat.oftc.net/#openwrt): Channel `#openwrt` on **oftc.net**.
-
-### Developer Community
-
-* [Bug Reports](https://bugs.openwrt.org): Report bugs in OpenWrt
-* [Dev Mailing List](https://lists.openwrt.org/mailman/listinfo/openwrt-devel): Send patches
-* [Dev Chat](https://webchat.oftc.net/#openwrt-devel): Channel `#openwrt-devel` on **oftc.net**.
-
-## License
-
-OpenWrt is licensed under GPL-2.0
+Note that `make defconfig` requires `gawk`, and that a package Makefile change
+needs an explicit `clean` of that package before it takes effect.
